@@ -34,9 +34,10 @@ main =
 {- MODEL -}
 
 
-type alias NoteDetails =
+type alias Note =
     { key : String
     , pitch : Pitch
+    , name : String
     }
 
 
@@ -46,7 +47,7 @@ type Pitch
 
 
 type alias Piano =
-    List NoteDetails
+    List Note
 
 
 type Instrument
@@ -59,7 +60,20 @@ type alias Band =
 
 piano : Piano
 piano =
-    [ { pitch = Natural, key = "C4" }, { pitch = Flat, key = "C#4" } ]
+    [ { pitch = Natural, key = "C4", name = "C" }
+    , { pitch = Flat, key = "C#4", name = "C#" }
+    , { pitch = Natural, key = "D4", name = "D" }
+    , { pitch = Flat, key = "D#4", name = "D#" }
+    , { pitch = Natural, key = "E4", name = "E" }
+    , { pitch = Natural, key = "F4", name = "F" }
+    , { pitch = Flat, key = "F#4", name = "F#" }
+    , { pitch = Natural, key = "G4", name = "G" }
+    , { pitch = Flat, key = "G#4", name = "G#" }
+    , { pitch = Natural, key = "A4", name = "A" }
+    , { pitch = Flat, key = "A#4", name = "A#" }
+    , { pitch = Natural, key = "B4", name = "B" }
+    , { pitch = Natural, key = "C5", name = "C" }
+    ]
 
 
 band : Band
@@ -89,19 +103,13 @@ init _ =
 
 
 type Msg
-    = Change String
-    | Submit String
+    = Submit String
     | WebsocketIn String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        Change input ->
-            ( { model | input = input }
-            , Cmd.none
-            )
-
         Submit value ->
             ( model
             , websocketOut value
@@ -139,7 +147,7 @@ view model =
                             ]
                         , onClick (Submit l.key)
                         ]
-                        [ text l.key ]
+                        [ text l.name ]
                 )
                 model.piano
             )
