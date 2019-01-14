@@ -1,8 +1,8 @@
 port module Main exposing (main)
 
 import Browser
-import Html exposing (Html)
-import Html.Attributes as HA
+import Html exposing (..)
+import Html.Attributes as HA exposing (..)
 import Html.Events as HE exposing (onClick)
 import Json.Encode as JE
 
@@ -34,9 +34,43 @@ main =
 {- MODEL -}
 
 
+type alias NoteDetails =
+    { key : String
+    , pitch : Pitch
+    }
+
+
+type Pitch
+    = Flat
+    | Natural
+
+
+type alias Piano =
+    List NoteDetails
+
+
+type Instrument
+    = Keyboard Piano
+
+
+type alias Band =
+    List Instrument
+
+
+piano : Piano
+piano =
+    [ { pitch = Natural, key = "C4" }, { pitch = Flat, key = "C#4" } ]
+
+
+band : Band
+band =
+    [ Keyboard piano ]
+
+
 type alias Model =
     { responses : List String
     , input : String
+    , piano : Piano
     }
 
 
@@ -44,6 +78,7 @@ init : () -> ( Model, Cmd Msg )
 init _ =
     ( { responses = []
       , input = ""
+      , piano = piano
       }
     , Cmd.none
     )
@@ -91,18 +126,21 @@ subscriptions model =
 {- VIEW -}
 
 
-li : String -> Html Msg
-li string =
-    Html.li [] [ Html.text string ]
-
-
 view : Model -> Html Msg
 view model =
-    Html.div []
-        --[ Html.form [HE.onSubmit (WebsocketIn model.input)] -- Short circuit to test without ports
-        [ Html.form [ HE.onSubmit (Submit model.input) ]
-            [ Html.input [ HA.placeholder "Enter some text.", HA.value model.input, HE.onInput Change ] []
-            , Html.button [ HA.type_ "submit" ] [ Html.text "Submit" ]
-            , model.responses |> List.map li |> Html.ol []
-            ]
+    div []
+        [ ul []
+            (List.map
+                (\l ->
+                    button
+                        [ classList
+                            [ ( "natural", l.pitch == Natural )
+                            , ( "flat", l.pitch == Flat )
+                            ]
+                        , onClick (Submit l.key)
+                        ]
+                        [ text l.key ]
+                )
+                model.piano
+            )
         ]
