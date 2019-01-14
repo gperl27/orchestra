@@ -1,56 +1,108 @@
-module Main exposing (..)
+port module Main exposing (main)
 
 import Browser
-import Html exposing (Html, text, div, h1, img)
-import Html.Attributes exposing (src)
+import Html exposing (Html)
+import Html.Attributes as HA
+import Html.Events as HE exposing (onClick)
+import Json.Encode as JE
 
 
----- MODEL ----
+
+-- JavaScript usage: app.ports.websocketIn.send(response);
+
+
+port websocketIn : (String -> msg) -> Sub msg
+
+
+
+-- JavaScript usage: app.ports.websocketOut.subscribe(handler);
+
+
+port websocketOut : String -> Cmd msg
+
+
+main =
+    Browser.element
+        { init = init
+        , update = update
+        , view = view
+        , subscriptions = subscriptions
+        }
+
+
+
+{- MODEL -}
 
 
 type alias Model =
-    {}
+    { responses : List String
+    , input : String
+    }
 
 
-init : ( Model, Cmd Msg )
-init =
-    ( {}, Cmd.none )
+init : () -> ( Model, Cmd Msg )
+init _ =
+    ( { responses = []
+      , input = ""
+      }
+    , Cmd.none
+    )
 
 
 
----- UPDATE ----
+{- UPDATE -}
 
 
 type Msg
-    = NoOp
+    = Change String
+    | Submit String
+    | WebsocketIn String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    ( model, Cmd.none )
+    case msg of
+        Change input ->
+            ( { model | input = input }
+            , Cmd.none
+            )
+
+        Submit value ->
+            ( model
+            , websocketOut value
+            )
+
+        WebsocketIn value ->
+            ( { model | responses = value :: model.responses }
+            , Cmd.none
+            )
 
 
 
----- VIEW ----
+{- SUBSCRIPTIONS -}
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    websocketIn WebsocketIn
+
+
+
+{- VIEW -}
+
+
+li : String -> Html Msg
+li string =
+    Html.li [] [ Html.text string ]
 
 
 view : Model -> Html Msg
 view model =
-    div []
-        [ img [ src "/images/logo.svg" ] []
-        , h1 [] [ text "Your Elm App is working!" ]
+    Html.div []
+        --[ Html.form [HE.onSubmit (WebsocketIn model.input)] -- Short circuit to test without ports
+        [ Html.form [ HE.onSubmit (Submit model.input) ]
+            [ Html.input [ HA.placeholder "Enter some text.", HA.value model.input, HE.onInput Change ] []
+            , Html.button [ HA.type_ "submit" ] [ Html.text "Submit" ]
+            , model.responses |> List.map li |> Html.ol []
+            ]
         ]
-
-
-
----- PROGRAM ----
-
-
-main : Program () Model Msg
-main =
-    Browser.element
-        { view = view
-        , init = \_ -> init
-        , update = update
-        , subscriptions = always Sub.none
-        }
