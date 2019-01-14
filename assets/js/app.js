@@ -1,7 +1,7 @@
 // We need to import the CSS so that webpack will load it.
 // The MiniCssExtractPlugin is used to separate it out into
 // its own CSS file.
-import css from '../css/app.css';
+import css from "../css/app.css";
 
 // webpack automatically bundles all modules in your
 // entry points. Those entry points can be configured
@@ -9,13 +9,14 @@ import css from '../css/app.css';
 //
 // Import dependencies
 //
-import 'phoenix_html';
+import "phoenix_html";
 
+import { Presence } from 'phoenix'
 // Import local files
 //
 // Local files can be imported directly using relative paths, for example:
-import socket from './socket';
-var channel = socket.channel('room:lobby', {}); // connect to chat "room"
+import socket from "./socket";
+var channel = socket.channel("room:lobby", {}); // connect to chat "room"
 
 // channel.on('shout', function (payload) {
 //     // listen to the 'shout' event
@@ -24,7 +25,6 @@ var channel = socket.channel('room:lobby', {}); // connect to chat "room"
 //     li.innerHTML = '<b>' + name + '</b>: ' + payload.message; // set li contents
 //     ul.appendChild(li); // append to list
 // });
-
 
 // var ul = document.getElementById('msg-list'); // list of messages.
 // var name = document.getElementById('name'); // name of message sender
@@ -42,32 +42,57 @@ var channel = socket.channel('room:lobby', {}); // connect to chat "room"
 //     msg.value = ''; // reset the message input field for next message.
 //   }
 // });
-import { Elm } from "../elm/src/Main.elm"
+import { Elm } from "../elm/src/Main.elm";
+import Tone from 'tone'
 
 const elmDiv = document.getElementById("elm-main");
 let app = Elm.Main.init({ node: elmDiv });
 
-channel.on('shout', function ({ msg }) {
-    console.log('INCOMING', msg)
+channel.on("shout", function({ msg }) {
+  console.log("INCOMING", msg);
 
-    app.ports.websocketIn.send(JSON.stringify({ data: msg, timeStamp: new Date() }));
-})
+  app.ports.websocketIn.send(
+    JSON.stringify({ data: msg, timeStamp: new Date() })
+  );
 
-channel.join() // join the channel.
-    .receive("ok", resp => {
-        console.log("Joined successfully", resp)
-        app.ports.websocketIn.send(JSON.stringify({ data: 'you joined', timeStamp: new Date() }));
-    })
-    .receive("error", resp => { console.log("Unable to join", resp) })
+  var synth = new Tone.Synth().toMaster();
 
-app.ports.websocketOut.subscribe(function (msg) {
-    console.log(msg, 'msg')
+  //play a middle 'C' for the duration of an 8th note
+  synth.triggerAttackRelease(msg, "8n");
+});
 
-    channel.push('shout', {
-        msg
-        // send the message to the server on "shout" channel
-        // name: 'name', // get value of "name" of person sending the message
-        // message: 'message', // get message text (value) from msg input field.
-    });
-})
+channel
+  .join() // join the channel.
+  .receive("ok", resp => {
+    console.log("Joined successfully", resp);
+    app.ports.websocketIn.send(
+      JSON.stringify({ data: "you joined", timeStamp: new Date() })
+    );
+  })
+  .receive("error", resp => {
+    console.log("Unable to join", resp);
+  });
 
+app.ports.websocketOut.subscribe(function(msg) {
+  console.log(msg, "msg");
+
+  channel.push("shout", {
+    msg
+    // send the message to the server on "shout" channel
+    // name: 'name', // get value of "name" of person sending the message
+    // message: 'message', // get message text (value) from msg input field.
+  });
+});
+
+let presences = {};
+channel.on("presence_state", state => {
+  presences = Presence.syncState(presences, state);
+  console.log('presence state', presences)
+//   renderOnlineUsers(presences);
+});
+
+channel.on("presence_diff", diff => {
+  presences = Presence.syncDiff(presences, diff);
+  console.log('presence diff', presences)
+//   renderOnlineUsers(presences);
+});

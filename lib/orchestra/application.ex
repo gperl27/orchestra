@@ -11,9 +11,10 @@ defmodule Orchestra.Application do
       # Start the Ecto repository
       # Orchestra.Repo,
       # Start the endpoint when the application starts
-      OrchestraWeb.Endpoint
+      OrchestraWeb.Endpoint,
       # Starts a worker by calling: Orchestra.Worker.start_link(arg)
       # {Orchestra.Worker, arg},
+      OrchestraWeb.Presence
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
