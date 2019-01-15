@@ -1,6 +1,7 @@
 defmodule OrchestraWeb.RoomChannel do
   use OrchestraWeb, :channel
   alias OrchestraWeb.Presence
+  # import Ecto
 
   def join("room:lobby", payload, socket) do
     if authorized?(payload) do
@@ -27,9 +28,12 @@ defmodule OrchestraWeb.RoomChannel do
   def handle_info(:after_join, socket) do
     push(socket, "presence_state", Presence.list(socket))
 
+    uuid = Ecto.UUID.generate()
+
     {:ok, _} =
-      Presence.track(socket, "user_id:1", %{
-        online_at: inspect(System.system_time(:second))
+      Presence.track(socket, uuid, %{
+        online_at: inspect(System.system_time(:second)),
+        uuid: uuid
       })
 
     {:noreply, socket}

@@ -1,9 +1,11 @@
 port module Main exposing (main)
 
 import Browser
+import Debug exposing (log)
 import Html exposing (..)
 import Html.Attributes as HA exposing (..)
 import Html.Events as HE exposing (onClick)
+import Json.Decode as JD
 import Json.Encode as JE
 
 
@@ -11,7 +13,7 @@ import Json.Encode as JE
 -- JavaScript usage: app.ports.websocketIn.send(response);
 
 
-port websocketIn : (String -> msg) -> Sub msg
+port websocketIn : (JE.Value -> msg) -> Sub msg
 
 
 
@@ -82,21 +84,23 @@ piano =
 
 
 type alias Model =
-    { responses : List String
-    , band : Band
+    { band : Band
     , piano : Piano
     , roomId : Maybe String
     , view : ViewState
+    , users : List String
+    , error : String
     }
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { responses = []
-      , band = []
+    ( { band = []
       , piano = piano
       , roomId = Nothing
       , view = Lobby
+      , users = []
+      , error = ""
       }
     , Cmd.none
     )
@@ -113,8 +117,9 @@ type ViewState
 
 type Msg
     = Submit String
-    | WebsocketIn String
     | ViewState ViewState
+    | Users (List String)
+    | Error String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -125,26 +130,65 @@ update msg model =
             , websocketOut value
             )
 
-        WebsocketIn value ->
-            ( { model | responses = value :: model.responses }
-            , Cmd.none
-            )
-
         ViewState value ->
             ( { model | view = value }, Cmd.none )
+
+        Users value ->
+            ( { model | users = value }, Cmd.none )
+
+        Error value ->
+            ( { model | error = value }, Cmd.none )
 
 
 
 {- SUBSCRIPTIONS -}
+-- movieListToMsg : JE.Value -> Msg
+-- movieListToMsg raw =
+--     case JD.decodeValue (JD.field "movies" movieListDecoder) raw of
+--         Ok movies ->
+--             UpdateMovies movies
+--         Err error ->
+--             Error (JD.errorToString error)
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    websocketIn WebsocketIn
+    websocketIn decodeValue
+
+
+decodeValue : JE.Value -> Msg
+decodeValue raw =
+    let
+        object_type =
+            JD.decodeValue (JD.field "message" JD.string) raw
+
+        _ =
+            Debug.log "incoming message" object_type
+    in
+    case object_type of
+        Ok "users" ->
+            case JD.decodeValue (JD.field "data" (JD.list JD.string)) raw of
+                Ok users ->
+                    Users users
+
+                Err error ->
+                    Users []
+
+        Ok unknown_type ->
+            Error "unknown type"
+
+        Err error ->
+            Error (JD.errorToString error)
 
 
 
 {- VIEW -}
+
+
+renderUsers : Model -> Html Msg
+renderUsers model =
+    div []
+        [ ul [] (List.map (\l -> li [] [ text l ]) model.users) ]
 
 
 renderLobby : Model -> Html Msg
@@ -177,11 +221,20 @@ renderRoom model =
         ]
 
 
-view : Model -> Html Msg
-view model =
+router : Model -> Html Msg
+router model =
     case model.view of
         Lobby ->
             renderLobby model
 
         Room ->
             renderRoom model
+
+
+view : Model -> Html Msg
+view model =
+    div []
+        [ div [] [ text model.error ]
+        , renderUsers model
+        , router model
+        ]

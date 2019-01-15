@@ -10,42 +10,14 @@ import css from "../css/app.css";
 // Import dependencies
 //
 import "phoenix_html";
-
-import { Presence } from 'phoenix'
-// Import local files
-//
-// Local files can be imported directly using relative paths, for example:
+import Tone from "tone";
+import { Presence } from "phoenix";
 import socket from "./socket";
-var channel = socket.channel("room:lobby", {}); // connect to chat "room"
-
-// channel.on('shout', function (payload) {
-//     // listen to the 'shout' event
-//     var li = document.createElement('li'); // creaet new list item DOM element
-//     var name = payload.name || 'guest'; // get name from payload or set default
-//     li.innerHTML = '<b>' + name + '</b>: ' + payload.message; // set li contents
-//     ul.appendChild(li); // append to list
-// });
-
-// var ul = document.getElementById('msg-list'); // list of messages.
-// var name = document.getElementById('name'); // name of message sender
-// var msg = document.getElementById('msg'); // message input field
-
-// // "listen" for the [Enter] keypress event to send a message:
-// msg.addEventListener('keypress', function(event) {
-//   if (event.keyCode == 13 && msg.value.length > 0) {
-//     // don't sent empty msg.
-// channel.push('shout', {
-//   // send the message to the server on "shout" channel
-//   name: name.value, // get value of "name" of person sending the message
-//   message: msg.value, // get message text (value) from msg input field.
-// });
-//     msg.value = ''; // reset the message input field for next message.
-//   }
-// });
 import { Elm } from "../elm/src/Main.elm";
-import Tone from 'tone'
 
+const channel = socket.channel("room:lobby", {}); // connect to chat "room"
 const elmDiv = document.getElementById("elm-main");
+
 let app = Elm.Main.init({ node: elmDiv });
 
 channel.on("shout", function({ msg }) {
@@ -62,24 +34,22 @@ channel.on("shout", function({ msg }) {
 });
 
 channel.on("join", () => {
-  console.log("joined room")
-})
+  console.log("joined room");
+});
 
 channel
   .join() // join the channel.
   .receive("ok", resp => {
     console.log("Joined successfully", resp);
-    app.ports.websocketIn.send(
-      JSON.stringify({ data: "you joined", timeStamp: new Date() })
-    );
+    // app.ports.websocketIn.send(
+    //   JSON.stringify({ data: "you joined", timeStamp: new Date() })
+    // );
   })
   .receive("error", resp => {
     console.log("Unable to join", resp);
   });
 
 app.ports.websocketOut.subscribe(function(msg) {
-  console.log(msg, "msg");
-
   channel.push("shout", {
     msg
     // send the message to the server on "shout" channel
@@ -91,12 +61,29 @@ app.ports.websocketOut.subscribe(function(msg) {
 let presences = {};
 channel.on("presence_state", state => {
   presences = Presence.syncState(presences, state);
-  console.log('presence state', presences)
-//   renderOnlineUsers(presences);
+  console.log("presence state", presences);
+  //   renderOnlineUsers(presences);
 });
+
+const replaceQuickAndEasyMap = data => {
+  return data.map(presence => presence.metas.map(meta => meta.uuid));
+};
+
+function flattenDeep(arr1) {
+  return arr1.reduce((acc, val) => Array.isArray(val) ? acc.concat(flattenDeep(val)) : acc.concat(val), []);
+}
 
 channel.on("presence_diff", diff => {
   presences = Presence.syncDiff(presences, diff);
-  console.log('presence diff', presences)
-//   renderOnlineUsers(presences);
+  console.log("presence diff", presences);
+
+  console.log(Presence.list(presences));
+
+  const transformPresences = replaceQuickAndEasyMap(Presence.list(presences))
+  const flattenedPresences = flattenDeep(transformPresences)
+
+  app.ports.websocketIn.send({
+    message: "users",
+    data: flattenedPresences //users
+  });
 });
