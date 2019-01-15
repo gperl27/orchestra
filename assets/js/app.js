@@ -61,6 +61,10 @@ channel.on("shout", function({ msg }) {
   synth.triggerAttackRelease(msg, "8n");
 });
 
+channel.on("join", () => {
+  console.log("joined room")
+})
+
 channel
   .join() // join the channel.
   .receive("ok", resp => {

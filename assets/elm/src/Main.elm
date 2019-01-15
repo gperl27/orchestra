@@ -38,6 +38,7 @@ type alias Note =
     { key : String
     , pitch : Pitch
     , name : String
+    , touched : Bool
     }
 
 
@@ -54,45 +55,48 @@ type Instrument
     = Keyboard Piano
 
 
+type alias Musician =
+    { userId : String, name : String, instrument : Maybe Instrument }
+
+
 type alias Band =
-    List Instrument
+    List Musician
 
 
 piano : Piano
 piano =
-    [ { pitch = Natural, key = "C4", name = "C" }
-    , { pitch = Flat, key = "C#4", name = "C#" }
-    , { pitch = Natural, key = "D4", name = "D" }
-    , { pitch = Flat, key = "D#4", name = "D#" }
-    , { pitch = Natural, key = "E4", name = "E" }
-    , { pitch = Natural, key = "F4", name = "F" }
-    , { pitch = Flat, key = "F#4", name = "F#" }
-    , { pitch = Natural, key = "G4", name = "G" }
-    , { pitch = Flat, key = "G#4", name = "G#" }
-    , { pitch = Natural, key = "A4", name = "A" }
-    , { pitch = Flat, key = "A#4", name = "A#" }
-    , { pitch = Natural, key = "B4", name = "B" }
-    , { pitch = Natural, key = "C5", name = "C" }
+    [ { pitch = Natural, key = "C4", name = "C", touched = False }
+    , { pitch = Flat, key = "C#4", name = "C#", touched = False }
+    , { pitch = Natural, key = "D4", name = "D", touched = False }
+    , { pitch = Flat, key = "D#4", name = "D#", touched = False }
+    , { pitch = Natural, key = "E4", name = "E", touched = False }
+    , { pitch = Natural, key = "F4", name = "F", touched = False }
+    , { pitch = Flat, key = "F#4", name = "F#", touched = False }
+    , { pitch = Natural, key = "G4", name = "G", touched = False }
+    , { pitch = Flat, key = "G#4", name = "G#", touched = False }
+    , { pitch = Natural, key = "A4", name = "A", touched = False }
+    , { pitch = Flat, key = "A#4", name = "A#", touched = False }
+    , { pitch = Natural, key = "B4", name = "B", touched = False }
+    , { pitch = Natural, key = "C5", name = "C", touched = False }
     ]
-
-
-band : Band
-band =
-    [ Keyboard piano ]
 
 
 type alias Model =
     { responses : List String
-    , input : String
+    , band : Band
     , piano : Piano
+    , roomId : Maybe String
+    , view : ViewState
     }
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
     ( { responses = []
-      , input = ""
+      , band = []
       , piano = piano
+      , roomId = Nothing
+      , view = Lobby
       }
     , Cmd.none
     )
@@ -102,9 +106,15 @@ init _ =
 {- UPDATE -}
 
 
+type ViewState
+    = Lobby
+    | Room
+
+
 type Msg
     = Submit String
     | WebsocketIn String
+    | ViewState ViewState
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -120,6 +130,9 @@ update msg model =
             , Cmd.none
             )
 
+        ViewState value ->
+            ( { model | view = value }, Cmd.none )
+
 
 
 {- SUBSCRIPTIONS -}
@@ -134,8 +147,16 @@ subscriptions model =
 {- VIEW -}
 
 
-view : Model -> Html Msg
-view model =
+renderLobby : Model -> Html Msg
+renderLobby model =
+    div []
+        [ button [ onClick (ViewState Room) ] [ text "crick me" ]
+        , text "lobby me"
+        ]
+
+
+renderRoom : Model -> Html Msg
+renderRoom model =
     div []
         [ ul []
             (List.map
@@ -144,6 +165,8 @@ view model =
                         [ classList
                             [ ( "natural", l.pitch == Natural )
                             , ( "flat", l.pitch == Flat )
+                            , ( "touched-natural", l.pitch == Natural && l.touched )
+                            , ( "touched-flat", l.pitch == Flat && l.touched )
                             ]
                         , onClick (Submit l.key)
                         ]
@@ -152,3 +175,13 @@ view model =
                 model.piano
             )
         ]
+
+
+view : Model -> Html Msg
+view model =
+    case model.view of
+        Lobby ->
+            renderLobby model
+
+        Room ->
+            renderRoom model
