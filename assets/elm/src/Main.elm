@@ -116,18 +116,32 @@ type ViewState
 
 
 type Msg
-    = Submit String
+    = PlayNote String
     | ViewState ViewState
     | Users (List String)
     | Error String
+
+sendPlayNote : String -> Cmd Msg
+sendPlayNote note =
+    let
+        json =
+            JE.object
+                [ ( "message", JE.string "playNote" )
+                , ( "data", JE.string note )
+                ]
+
+        str =
+            JE.encode 0 json
+    in
+    websocketOut str
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        Submit value ->
+        PlayNote value ->
             ( model
-            , websocketOut value
+            , sendPlayNote value
             )
 
         ViewState value ->
@@ -142,13 +156,6 @@ update msg model =
 
 
 {- SUBSCRIPTIONS -}
--- movieListToMsg : JE.Value -> Msg
--- movieListToMsg raw =
---     case JD.decodeValue (JD.field "movies" movieListDecoder) raw of
---         Ok movies ->
---             UpdateMovies movies
---         Err error ->
---             Error (JD.errorToString error)
 
 
 subscriptions : Model -> Sub Msg
@@ -212,7 +219,7 @@ renderRoom model =
                             , ( "touched-natural", l.pitch == Natural && l.touched )
                             , ( "touched-flat", l.pitch == Flat && l.touched )
                             ]
-                        , onClick (Submit l.key)
+                        , onClick (PlayNote l.key)
                         ]
                         [ text l.name ]
                 )

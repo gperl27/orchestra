@@ -20,17 +20,13 @@ const elmDiv = document.getElementById("elm-main");
 
 let app = Elm.Main.init({ node: elmDiv });
 
-channel.on("shout", function({ msg }) {
-  console.log("INCOMING", msg);
-
-  app.ports.websocketIn.send(
-    JSON.stringify({ data: msg, timeStamp: new Date() })
-  );
+channel.on("playNote", function({ data }) {
+  console.log("PLAY NOTE", data);
 
   var synth = new Tone.Synth().toMaster();
 
   //play a middle 'C' for the duration of an 8th note
-  synth.triggerAttackRelease(msg, "8n");
+  synth.triggerAttackRelease(data, "8n");
 });
 
 channel.on("join", () => {
@@ -50,40 +46,28 @@ channel
   });
 
 app.ports.websocketOut.subscribe(function(msg) {
-  channel.push("shout", {
-    msg
-    // send the message to the server on "shout" channel
-    // name: 'name', // get value of "name" of person sending the message
-    // message: 'message', // get message text (value) from msg input field.
-  });
+  const { message, data } = JSON.parse(msg);
+
+  switch (message) {
+    case "playNote":
+      channel.push("playNote", { data });
+  }
 });
 
-let presences = {};
-channel.on("presence_state", state => {
-  presences = Presence.syncState(presences, state);
-  console.log("presence state", presences);
-  //   renderOnlineUsers(presences);
-});
+let presence = new Presence(channel);
 
-const replaceQuickAndEasyMap = data => {
-  return data.map(presence => presence.metas.map(meta => meta.uuid));
+const transform = (id, ...rest) => {
+  console.log(id, "id");
+  console.log(rest, "rest");
+
+  return id;
 };
 
-function flattenDeep(arr1) {
-  return arr1.reduce((acc, val) => Array.isArray(val) ? acc.concat(flattenDeep(val)) : acc.concat(val), []);
-}
-
-channel.on("presence_diff", diff => {
-  presences = Presence.syncDiff(presences, diff);
-  console.log("presence diff", presences);
-
-  console.log(Presence.list(presences));
-
-  const transformPresences = replaceQuickAndEasyMap(Presence.list(presences))
-  const flattenedPresences = flattenDeep(transformPresences)
+presence.onSync(() => {
+  const transformedPresences = presence.list(transform);
 
   app.ports.websocketIn.send({
     message: "users",
-    data: flattenedPresences //users
+    data: transformedPresences
   });
 });

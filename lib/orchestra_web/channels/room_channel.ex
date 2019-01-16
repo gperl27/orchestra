@@ -1,7 +1,6 @@
 defmodule OrchestraWeb.RoomChannel do
   use OrchestraWeb, :channel
   alias OrchestraWeb.Presence
-  # import Ecto
 
   def join("room:lobby", payload, socket) do
     if authorized?(payload) do
@@ -20,8 +19,9 @@ defmodule OrchestraWeb.RoomChannel do
 
   # It is also common to receive messages from the client and
   # broadcast to everyone in the current topic (room:lobby).
-  def handle_in("shout", payload, socket) do
-    broadcast(socket, "shout", payload)
+  def handle_in("playNote", payload, socket) do
+    IO.inspect payload
+    broadcast(socket, "playNote", payload)
     {:noreply, socket}
   end
 
